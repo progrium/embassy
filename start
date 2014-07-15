@@ -75,8 +75,8 @@ main() {
 	case "$1" in
 	cmd:run)            shift; cmd-run "$@";;
 	cmd:iptables)       cmd-iptables;;
-	set:iptables)		set-iptables;;
-	opt:docker)			dockeropts;;
+	set:iptables)       set-iptables;;
+	opt:docker)         dockeropts;;
 	*)                  start "$@";;
 	esac
 }
