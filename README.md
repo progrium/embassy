@@ -58,4 +58,28 @@ $(docker run --rm progrium/consul cmd:run $PRIVATE_IP -it)
 echo "DOCKER_OPTS='--dns $BRIDGE_IP --dns 8.8.8.8 --dns-search service.consul'" > /etc/default/docker
 service restart docker
 
+===
+manual version from prototype:
+
+docker run -d --name consul -h $HOSTNAME -v /mnt:/data \
+    -p $PRIVATE_IP:8300:8300 \
+    -p $PRIVATE_IP:8301:8301 \
+    -p $PRIVATE_IP:8301:8301/udp \
+    -p $PRIVATE_IP:8302:8302 \
+    -p $PRIVATE_IP:8302:8302/udp \
+    -p $PRIVATE_IP:8400:8400 \
+    -p $PRIVATE_IP:8500:8500 \
+    -p $BRIDGE_IP:53:53/udp \
+    progrium/consul -server -bootstrap -advertise $PRIVATE_IP
+
+docker run -d -v /var/run/docker.sock:/var/run/docker.sock --dns $BRIDGE_IP --name backends progrium/ambassadord --omnimode
+docker run --rm --privileged --net container:backends progrium/ambassadord --setup-iptables
+docker run -d --name docksul -v /var/run/docker.sock:/tmp/docker.sock progrium/docksul http://$PRIVATE_IP:8500 unix:///tmp/docker.sock
+
+
+
+docker pull progrium/consul
+docker pull progrium/ambassadord
+docker pull progrium/docksul
+
 ```
