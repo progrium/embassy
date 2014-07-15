@@ -1,0 +1,14 @@
+{
+	"data_dir": "/data",
+	"ui_dir": "/ui",
+	"client_addr": "0.0.0.0",
+	"ports": {
+		"http": 8500,
+		"rpc": 8400,
+		"serf_lan": 8301,
+		"serf_wan": 8302,
+		"server": 8300,
+		"dns": 53
+	},
+	"recursor": "8.8.8.8"
+}

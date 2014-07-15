@@ -1,0 +1,84 @@
+#!/bin/bash
+
+readonly IMAGE="progrium/consulate"
+readonly NAME="consulate"
+
+cmd-run() {
+	local ip_def="$1"; shift
+	local args="$@"
+
+	declare external_ip join_ip bridge_ip run_mode
+
+	IFS=':' read external_ip join_ip <<< "${ip_def/::/:}"
+	if [[ -z "$join_ip" ]]; then
+		run_mode="-bootstrap"
+	else
+		run_mode="-join $join_ip"
+	fi
+
+	bridge_ip="$(ip ro | grep ^default | awk '{print $3}')"
+	cat <<EOF
+eval docker run --name $NAME -h \$HOSTNAME \
+	-p $external_ip:8300:8300 \
+	-p $external_ip:8301:8301 \
+	-p $external_ip:8301:8301/udp \
+	-p $external_ip:8302:8302 \
+	-p $external_ip:8302:8302/udp \
+	-p $external_ip:8400:8400 \
+	-p $external_ip:8500:8500 \
+	-p $bridge_ip:53:53/udp \
+	-v /var/run/docker.sock:/tmp/docker.sock \
+	--dns $bridge_ip \
+	$args \
+	$IMAGE -server -advertise $external_ip $run_mode
+EOF
+}
+
+cmd-iptables() {
+	echo "eval docker run --rm --privileged --net container:$NAME $IMAGE set:iptables"
+}
+
+dockeropts() {
+	local bridge_ip="$(ip ro | grep ^default | awk '{print $3}')"
+	echo "--dns $bridge_ip --dns 8.8.8.8 --dns-search service.consul"
+}
+
+set-iptables() {
+	echo "Setting up iptables for container interface..."
+	iptables -t nat -A PREROUTING -p tcp --dport 8300 -j ACCEPT
+	iptables -t nat -A PREROUTING -p tcp --dport 8301 -j ACCEPT
+	iptables -t nat -A PREROUTING -p tcp --dport 8302 -j ACCEPT
+	iptables -t nat -A PREROUTING -p tcp --dport 8400 -j ACCEPT
+	iptables -t nat -A PREROUTING -p tcp --dport 8500 -j ACCEPT
+	iptables -t nat -A PREROUTING -p tcp -j REDIRECT --to-ports 10000
+}
+
+codep() {
+	set -eo monitor
+	trap 'kill $(jobs -p) &> /dev/null' EXIT
+	trap 'exit 2' CHLD
+	for child in "$@"; do
+		eval "$child &"
+	done
+	wait
+}
+
+start() {
+	codep \
+		"/bin/consul agent -config-dir=/config $(echo "$@")" \
+		'/bin/ambassadord' \
+		'/bin/docksul 0.0.0.0:8500'
+}
+
+main() {
+	set -eo pipefail
+	case "$1" in
+	cmd:run)            shift; cmd-run "$@";;
+	cmd:iptables)       cmd-iptables;;
+	set:iptables)		set-iptables;;
+	opt:docker)			dockeropts;;
+	*)                  start "$@";;
+	esac
+}
+
+main "$@"

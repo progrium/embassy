@@ -1,0 +1,44 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+VAGRANTFILE_API_VERSION = "2"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+  config.vm.box = "3scale/docker"
+
+  config.vm.provision "shell", inline: <<SCRIPT
+    docker pull progrium/consulate
+    docker pull progrium/webapp
+    docker pull progrium/nginx
+    docker pull dockerfile/redis
+    docker pull dockerfile/ubuntu
+    chmod o+rw /var/run/docker.sock
+SCRIPT
+
+  config.vm.define "node1" do |node|
+    node.vm.network "private_network", ip: "192.168.100.101"
+    node.vm.hostname = "node1"
+    node.vm.provision "shell", inline: <<SCRIPT
+      $(docker run --rm progrium/consulate cmd:run 192.168.100.101 -d)
+      $(docker run --rm progrium/consulate cmd:iptables)
+SCRIPT
+  end
+
+  config.vm.define "node2" do |node|
+    node.vm.network "private_network", ip: "192.168.100.102"
+    node.vm.hostname = "node2"
+    node.vm.provision "shell", inline: <<SCRIPT
+      $(docker run --rm progrium/consulate cmd:run 192.168.100.102::192.168.100.101 -d)
+      $(docker run --rm progrium/consulate cmd:iptables)
+SCRIPT
+  end
+
+  config.vm.define "node3" do |node|
+    node.vm.network "private_network", ip: "192.168.100.103"
+    node.vm.hostname = "node3"
+    node.vm.provision "shell", inline: <<SCRIPT
+      $(docker run --rm progrium/consulate cmd:run 192.168.100.103::192.168.100.101 -d)
+      $(docker run --rm progrium/consulate cmd:iptables)
+SCRIPT
+  end  
+end
