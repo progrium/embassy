@@ -16,7 +16,7 @@ cmd-run() {
 		run_mode="-join $join_ip"
 	fi
 
-	bridge_ip="$(ip ro | grep ^default | awk '{print $3}')"
+	bridge_ip="$(ip ro | awk '/^default/{print $3}')"
 	cat <<EOF
 eval docker run --name $NAME -h \$HOSTNAME \
 	-p $external_ip:8300:8300 \
@@ -39,7 +39,7 @@ cmd-iptables() {
 }
 
 dockeropts() {
-	local bridge_ip="$(ip ro | grep ^default | awk '{print $3}')"
+	local bridge_ip="$(ip ro | awk '/^default/{print $3}')"
 	echo "--dns $bridge_ip --dns 8.8.8.8 --dns-search service.consul"
 }
 
